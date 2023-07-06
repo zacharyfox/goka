@@ -163,7 +163,9 @@ func (p *PartitionTable) loadRestarting(ctx context.Context, stopAfterCatchup bo
 		}
 
 		retryDuration := p.backoff.Duration()
+		retryMux.Lock()
 		p.log.Printf("Will retry in %.0f seconds (retried %d times so far)", retryDuration.Seconds(), retries)
+		retryMux.Unlock()
 		select {
 		case <-ctx.Done():
 			return nil
