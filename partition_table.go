@@ -3,6 +3,7 @@ package goka
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/Shopify/sarama"
@@ -137,6 +138,7 @@ func (p *PartitionTable) loadRestarting(ctx context.Context, stopAfterCatchup bo
 	var (
 		resetTimer *time.Timer
 		retries    int
+		retryMux   sync.Mutex
 	)
 
 	for {
@@ -144,13 +146,17 @@ func (p *PartitionTable) loadRestarting(ctx context.Context, stopAfterCatchup bo
 		if err != nil {
 			p.log.Printf("Error while starting up: %v", err)
 
+			retryMux.Lock()
 			retries++
+			retryMux.Unlock()
 			if resetTimer != nil {
 				resetTimer.Stop()
 			}
 			resetTimer = time.AfterFunc(p.backoffResetTimeout, func() {
 				p.backoff.Reset()
+				retryMux.Lock()
 				retries = 0
+				retryMux.Unlock()
 			})
 		} else {
 			return nil
